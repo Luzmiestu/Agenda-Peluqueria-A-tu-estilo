@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>A tu Estilo - Agenda Profesional</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: #000;
+    color: #d4af37;
+}
+
+/* HEADER */
+.header {
+    text-align: center;
+    padding: 20px;
+    border-bottom: 2px solid #d4af37;
+}
+
+.header img {
+    width: 120px;
+    border-radius: 50%;
+    border: 3px solid #d4af37;
+}
+
+.header h1 {
+    margin: 10px 0 0;
+    font-size: 28px;
+    letter-spacing: 2px;
+}
+
+/* CONTENEDOR */
+.container {
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* FORMULARIO */
+form {
+    background: #111;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(212,175,55,0.2);
+}
+
+input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+}
+
+input, select {
+    background: #222;
+    color: #d4af37;
+}
+
+button {
+    background: #d4af37;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #b8962e;
+}
+
+/* AGENDA */
+.agenda {
+    margin-top: 20px;
+}
+
+.bloque {
+    padding: 10px;
+    border-bottom: 1px solid #333;
+}
+
+.libre {
+    color: #777;
+}
+
+.ocupado {
+    color: #00ff9d;
+}
+
+.cancelar {
+    background: red;
+    margin-top: 5px;
+}
+
+/* ADMIN */
+.admin {
+    display: none;
+    background: #111;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+
+/* RESUMEN */
+.resumen {
+    margin-top: 20px;
+    padding: 15px;
+    background: #111;
+    border-radius: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <img src="logo.png" alt="Logo">
+    <h1>A TU ESTILO</h1>
+</div>
+
+<div class="container">
+
+<form id="form">
+<input type="text" id="nombre" placeholder="Cliente" required>
+
+<select id="empleado">
+<option>Estilista 1</option>
+<option>Estilista 2</option>
+<option>Estilista 3</option>
+</select>
+
+<select id="servicio">
+<option>Corte</option>
+<option>Tinte</option>
+<option>Peinado</option>
+<option>Maquillaje</option>
+<option>Manicure</option>
+<option>Pedicure Normal</option>
+<option>Pedicure Semipermanente</option>
+<option>Manicure y Pedicure</option>
+<option>Keratina</option>
+<option>Depilación Cejas</option>
+<option>Depilación Axilas</option>
+</select>
+
+<input type="date" id="fecha" required>
+<input type="time" id="hora" required>
+
+<button>Agendar Cita</button>
+</form>
+
+<h2>Agenda del Día</h2>
+<input type="date" id="filtro">
+
+<div id="agenda" class="agenda"></div>
+
+<div id="resumen" class="resumen"></div>
+
+<hr>
+
+<button onclick="mostrarLogin()">Modo Administrador</button>
+<input type="password" id="pass" placeholder="Contraseña" style="display:none;">
+<button onclick="verificar()" id="btnLogin" style="display:none;">Entrar</button>
+
+<div id="adminPanel" class="admin">
+<h2>Panel Administrador</h2>
+<p>Cancelación habilitada</p>
+</div>
+
+</div>
+
+<script>
+let citas = JSON.parse(localStorage.getItem("citas")) || [];
+let admin = false;
+const PASS = "admin123";
+
+const hoy = new Date().toISOString().split("T")[0];
+fecha.min = hoy;
+filtro.value = hoy;
+
+function guardar() {
+    localStorage.setItem("citas", JSON.stringify(citas));
+}
+
+function horas() {
+    let h = [];
+    for (let i = 5; i <= 21; i++) {
+        h.push((i<10?"0":"")+i+":00");
+    }
+    return h;
+}
+
+function mostrar() {
+    agenda.innerHTML = "";
+    let total = 0;
+
+    const fechaSel = filtro.value;
+
+    horas().forEach(hora => {
+        const div = document.createElement("div");
+        div.className = "bloque";
+
+        const lista = citas.filter(c => c.fecha === fechaSel && c.hora === hora);
+
+        if (lista.length) {
+            lista.forEach(c => {
+                total++;
+                const item = document.createElement("div");
+                item.className = "ocupado";
+                item.innerHTML = `${hora} - ${c.nombre} (${c.servicio}) [${c.empleado}]`;
+
+                if (admin) {
+                    const btn = document.createElement("button");
+                    btn.textContent = "Cancelar";
+                    btn.className = "cancelar";
+                    btn.onclick = () => cancelar(c);
+                    item.appendChild(btn);
+                }
+
+                div.appendChild(item);
+            });
+        } else {
+            div.innerHTML = `<span class="libre">${hora} - Disponible</span>`;
+        }
+
+        agenda.appendChild(div);
+    });
+
+    resumen.innerHTML = `<strong>Total citas:</strong> ${total}`;
+}
+
+form.addEventListener("submit", e => {
+    e.preventDefault();
+
+    const nombre = document.getElementById("nombre").value;
+    const empleado = document.getElementById("empleado").value;
+    const servicio = document.getElementById("servicio").value;
+    const fechaVal = document.getElementById("fecha").value;
+    const horaVal = document.getElementById("hora").value;
+
+    const h = parseInt(horaVal.split(":")[0]);
+
+    if (h < 5 || h >= 21) {
+        alert("Horario permitido: 5AM - 9PM");
+        return;
+    }
+
+    if (citas.find(c => c.fecha === fechaVal && c.hora === horaVal && c.empleado === empleado)) {
+        alert("Ese empleado ya tiene cita en esa hora");
+        return;
+    }
+
+    citas.push({ nombre, empleado, servicio, fecha: fechaVal, hora: horaVal });
+    guardar();
+    mostrar();
+    form.reset();
+});
+
+function cancelar(cita) {
+    citas = citas.filter(c => c !== cita);
+    guardar();
+    mostrar();
+}
+
+function mostrarLogin() {
+    pass.style.display = "block";
+    btnLogin.style.display = "block";
+}
+
+function verificar() {
+    if (pass.value === PASS) {
+        admin = true;
+        adminPanel.style.display = "block";
+        alert("Modo administrador activado");
+        mostrar();
+    } else {
+        alert("Contraseña incorrecta");
+    }
+}
+
+filtro.addEventListener("change", mostrar);
+
+mostrar();
+</script>
+
+</body>
+</html>
